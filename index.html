@@ -1,0 +1,223 @@
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cocagom's Project</title>
+    <style>
+        /* [스타일은 기존과 동일하게 유지] */
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: #2c3e50;
+            color: white;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .brand {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #ecf0f1;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .menu {
+            display: flex;
+            gap: 20px;
+        }
+
+        .menu a {
+            color: #bdc3c7;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s;
+            cursor: pointer;
+        }
+
+        .menu a:hover, .menu a.active {
+            color: white;
+            font-weight: bold;
+        }
+
+        .iframe-container {
+            flex-grow: 1;
+            width: 100%;
+            position: relative;
+            background-color: #e0e5ec;
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="brand" id="brand-logo">Cocagom Apps</div>
+        <nav class="menu" id="nav-menu"></nav>
+    </header>
+
+    <div class="iframe-container">
+        <iframe id="mainFrame" src=""></iframe>
+    </div>
+
+    <script>
+        /**
+         * [설정 영역]
+         * type: 'link' (iframe 이동) 또는 'alert' (알림창)
+         */
+        const menuConfig = [
+            { 
+                id: 'clock', 
+                label: '알람시계', 
+                type: 'link', 
+                url: 'https://script.google.com/macros/s/AKfycbzMEBwm9tovwyGVT-Dp9cAPNm_X1GRl_ea9P2X39NhnghfDfP-bYK1YqyQIJW8AXYMg/exec' 
+            },
+            { 
+                id: 'post', 
+                label: '택배조회', 
+                type: 'link', 
+                url: 'https://script.google.com/macros/s/AKfycby0wh-P8oogO_7ZH0oITsDwfaRLJzD5VAqvjbs7ixA97aR5MY3dFS1imOhnYiaSu1_oFw/exec' 
+            },
+            { 
+                id: 'todo', 
+                label: '하루할일', 
+                type: 'link', 
+                url: 'https://script.google.com/macros/s/AKfycbxx3bdvDan-OzL_RAtuRAZ1Pe7gv_GHhBqnK5pucSEkceQQmPpBdrTIWeXwq35ieaEz/exec', 
+            },
+            {
+                id: 'dashboard',
+                label: '대시보드',
+                type: 'link',
+                url: 'https://script.google.com/macros/s/AKfycbxd1cnAbJrojsFhGzQuTZLc035hlnnU33z831U7gBlGYctuMpucpZxxB-Lq7idSADdHMA/exec',
+            },
+            {
+                id: 'othello',
+                label: '오델로',
+                type: 'link',
+                url: 'https://script.google.com/macros/s/AKfycbwATpmGfJJEvCX5d41F8gPjNaRcmMB60eqK0XBU-yqhVcpzTan90esfmIt2MDFc48Z-jQ/exec',
+            },
+            {
+                id: 'ready', 
+                label: '준비', 
+                type: 'alert', 
+                message: '아직 준비 중인 페이지입니다! 🚧' 
+            }
+        ];
+
+        // DOM 요소 참조
+        const navContainer = document.getElementById('nav-menu');
+        const mainFrame = document.getElementById('mainFrame');
+        const brandLogo = document.getElementById('brand-logo');
+        
+        // 로컬 스토리지 키 이름 정의
+        const STORAGE_KEY = 'cocagom_last_menu_id';
+
+        // 초기화 함수
+        function init() {
+            renderMenu();
+            
+            // 로고 클릭 이벤트 (첫 번째 메뉴로 리셋 및 저장된 상태 초기화 선택 가능)
+            brandLogo.addEventListener('click', () => {
+                if(menuConfig.length > 0) handleMenuClick(menuConfig[0]);
+            });
+
+            // [수정됨] 저장된 메뉴 상태 확인 및 로드
+            loadLastMenu();
+        }
+
+        // [추가됨] 마지막 메뉴 로드 로직
+        function loadLastMenu() {
+            if (menuConfig.length === 0) return;
+
+            // 1. 로컬 스토리지에서 저장된 ID 가져오기
+            const savedId = localStorage.getItem(STORAGE_KEY);
+            
+            // 2. 저장된 ID에 해당하는 메뉴 객체 찾기
+            let targetItem = menuConfig.find(item => item.id === savedId);
+
+            // 3. 저장된 게 없거나 유효하지 않으면 첫 번째 메뉴를 기본값으로 사용
+            if (!targetItem || targetItem.type !== 'link') {
+                targetItem = menuConfig[0];
+            }
+
+            handleMenuClick(targetItem);
+        }
+
+        // 메뉴 렌더링 함수
+        function renderMenu() {
+            navContainer.innerHTML = ''; 
+
+            menuConfig.forEach(item => {
+                const link = document.createElement('a');
+                link.textContent = item.label;
+                link.dataset.id = item.id; 
+                
+                link.addEventListener('click', () => handleMenuClick(item));
+                
+                navContainer.appendChild(link);
+            });
+        }
+
+        // 메뉴 클릭 핸들러
+        function handleMenuClick(item) {
+            // 1. 활성 상태 스타일 업데이트
+            if (item.type === 'link') {
+                updateActiveState(item.id);
+                
+                // [추가됨] 클릭한 유효한 링크 메뉴를 로컬 스토리지에 저장
+                localStorage.setItem(STORAGE_KEY, item.id);
+            }
+
+            // 2. 동작 수행
+            if (item.type === 'link') {
+                // 이미 같은 URL이면 리로드 방지 (선택 사항, 필요시 주석 해제)
+                // if (mainFrame.src !== item.url) mainFrame.src = item.url;
+                mainFrame.src = item.url;
+            } else if (item.type === 'alert') {
+                alert(item.message || '준비 중입니다.');
+            }
+        }
+
+        // 활성 메뉴 스타일 업데이트 함수
+        function updateActiveState(activeId) {
+            const links = navContainer.querySelectorAll('a');
+            links.forEach(link => {
+                if (link.dataset.id === activeId) {
+                    link.classList.add('active');
+                } else {
+                    link.classList.remove('active');
+                }
+            });
+        }
+
+        // 앱 시작
+        init();
+
+    </script>
+</body>
+</html>
